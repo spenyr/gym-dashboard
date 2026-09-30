@@ -218,7 +218,8 @@
     padding: 20px 24px 40px;
     overflow-x: auto;
   }
-  .data-panel h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+  .data-panel h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .data-panel .data-hint { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
   .data-table {
     width: 100%; border-collapse: collapse;
     font-size: 12px;
@@ -233,18 +234,51 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
-    position: sticky; top: 0;
+    position: sticky; top: 0; z-index: 2;
+    white-space: nowrap;
   }
   .data-table td {
     border: 1px solid var(--border);
-    padding: 8px 10px;
+    padding: 0;
     color: var(--text);
-    vertical-align: top;
+    vertical-align: middle;
   }
   .data-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  /* editable text cells */
+  .cell-edit {
+    display: block; width: 100%; min-height: 34px;
+    padding: 7px 8px;
+    outline: none;
+    font-size: 12px; color: var(--text);
+    background: transparent;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .cell-edit:focus {
+    background: rgba(108,99,255,0.12);
+    box-shadow: inset 0 0 0 2px var(--accent1);
+  }
+  /* checkbox (Done) cells */
+  .cell-check {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 34px; cursor: pointer;
+    font-size: 16px;
+  }
+  .cell-check.is-done  { color: var(--accent3); }
+  .cell-check.is-empty { color: var(--border); }
+  /* goal select */
+  .cell-select {
+    width: 100%; min-height: 34px; padding: 6px 8px;
+    background: transparent; border: none; outline: none;
+    color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  .cell-select:focus { background: rgba(108,99,255,0.12); }
+  .cell-select option { background: var(--surface); }
   .badge-done { background: rgba(67,233,123,0.15); color: var(--accent3); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
   .badge-miss { background: rgba(255,107,107,0.12); color: var(--accent2); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
   .badge-met  { background: rgba(108,99,255,0.15); color: var(--accent1); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  /* saved flash */
+  .row-saved td { animation: rowFlash 0.5s ease; }
+  @keyframes rowFlash { 0%,100%{background:transparent} 40%{background:rgba(67,233,123,0.12)} }
 
   /* Insights */
   .insights-section { padding: 0 24px 40px; }
@@ -478,6 +512,7 @@
 <div id="tab-data" class="tab-panel">
   <div class="data-panel">
     <h2>Weekly Data</h2>
+    <p class="data-hint">Tap any cell to edit it. Changes save instantly and update the dashboard.</p>
     <div id="data-table-wrap"></div>
   </div>
 </div>
@@ -759,42 +794,123 @@ function renderDashboard(data) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// DATA VIEW TABLE
+// DATA VIEW TABLE — editable
 // ═══════════════════════════════════════════════════════════
+
+// Columns that are "Done/empty" toggles
+const DONE_COLS = new Set([COL.chestDone, COL.backDone, COL.armsDone, COL.shoulderDone, COL.legsDone]);
+// Columns that get a goal <select>
+const GOAL_COL = COL.goal;
+
+function cellEdit(rowIdx, colIdx, value) {
+  return `<span class="cell-edit" contenteditable="true"
+    data-row="${rowIdx}" data-col="${colIdx}"
+    onblur="onCellBlur(this)"
+    onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+  >${escHtml(String(value ?? ''))}</span>`;
+}
+
+function cellCheck(rowIdx, colIdx, value) {
+  const done = hasData(value);
+  return `<span class="cell-check ${done ? 'is-done' : 'is-empty'}"
+    data-row="${rowIdx}" data-col="${colIdx}"
+    onclick="onCheckToggle(this)"
+    title="${done ? 'Click to clear' : 'Click to mark Done'}"
+  >${done ? '✓' : '○'}</span>`;
+}
+
+function cellGoal(rowIdx, value) {
+  const v = String(value ?? '');
+  return `<select class="cell-select"
+    data-row="${rowIdx}" data-col="${COL.goal}"
+    onchange="onCellSelect(this)">
+    <option value="" ${v===''?'selected':''}>—</option>
+    <option value="Met" ${v==='Met'?'selected':''}>Met</option>
+    <option value="Miss" ${v==='Miss'?'selected':''}>Miss</option>
+  </select>`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function onCellBlur(el) {
+  const rowIdx = +el.dataset.row;
+  const colIdx = +el.dataset.col;
+  const newVal = el.textContent.trim();
+  if (String(gymData[rowIdx][colIdx] ?? '') === newVal) return; // no change
+  gymData[rowIdx][colIdx] = newVal;
+  saveData(gymData);
+  refreshDashboard();
+  flashRow(el.closest('tr'));
+}
+
+function onCheckToggle(el) {
+  const rowIdx = +el.dataset.row;
+  const colIdx = +el.dataset.col;
+  const current = hasData(gymData[rowIdx][colIdx]);
+  gymData[rowIdx][colIdx] = current ? '' : 'Done';
+  el.classList.toggle('is-done', !current);
+  el.classList.toggle('is-empty', current);
+  el.textContent = current ? '○' : '✓';
+  saveData(gymData);
+  refreshDashboard();
+  flashRow(el.closest('tr'));
+}
+
+function onCellSelect(el) {
+  const rowIdx = +el.dataset.row;
+  gymData[rowIdx][COL.goal] = el.value;
+  saveData(gymData);
+  refreshDashboard();
+  flashRow(el.closest('tr'));
+}
+
+function flashRow(tr) {
+  if (!tr) return;
+  tr.classList.remove('row-saved');
+  void tr.offsetWidth; // reflow to restart animation
+  tr.classList.add('row-saved');
+}
+
 function renderDataTable() {
-  const rows = gymData.filter(r => hasData(r[COL.weekDate]));
+  // Map data indices to gymData indices for editable cells
+  const allRows = gymData;
+
   let html = `<table class="data-table">
     <thead><tr>
       <th>Week</th><th>Sessions</th><th>Goal</th>
-      <th>Chest</th><th>Chest Press</th>
-      <th>Back</th><th>Lat PD</th><th>Deadlift</th>
-      <th>Shoulder</th><th>Sh. Press</th>
-      <th>Arms</th><th>Legs</th><th>Squats</th>
-      <th>Weight</th><th>Tennis</th><th>Padel</th><th>Cycling</th>
+      <th>Chest ✓</th><th>Chest Press</th>
+      <th>Back ✓</th><th>Lat PD</th><th>Deadlift</th>
+      <th>Shoulder ✓</th><th>Sh. Press</th>
+      <th>Arms ✓</th><th>Legs ✓</th><th>Squats</th>
+      <th>Body Wt</th><th>Tennis h</th><th>Padel h</th><th>Cycling h</th>
     </tr></thead><tbody>`;
-  for (const row of rows) {
-    if (!hasData(row[COL.sessions]) && !hasData(row[COL.chestDone])) continue;
-    const goalBadge = row[COL.goal]==='Met' ? `<span class="badge-met">Met</span>`
-                    : row[COL.goal]==='Miss' ? `<span class="badge-miss">Miss</span>` : '';
-    const done = v => hasData(v) ? `<span class="badge-done">✓</span>` : '';
+
+  for (let i = 0; i < allRows.length; i++) {
+    const row = allRows[i];
+    if (!hasData(row[COL.weekDate])) continue;
+    if (!hasData(row[COL.sessions]) && !hasData(row[COL.chestDone]) &&
+        !hasData(row[COL.tennis]) && !hasData(row[COL.padel]) && !hasData(row[COL.cycling])) continue;
+
     html += `<tr>
-      <td>${row[COL.weekDate]}</td>
-      <td>${row[COL.sessions]||''}</td>
-      <td>${goalBadge}</td>
-      <td>${done(row[COL.chestDone])}</td>
-      <td style="font-size:11px">${row[COL.chestPress]||''}</td>
-      <td>${done(row[COL.backDone])}</td>
-      <td style="font-size:11px">${row[COL.latPulldown]||''}</td>
-      <td style="font-size:11px">${row[COL.deadlift]||''}</td>
-      <td>${done(row[COL.shoulderDone])}</td>
-      <td style="font-size:11px">${row[COL.shoulderPress]||''}</td>
-      <td>${done(row[COL.armsDone])}</td>
-      <td>${done(row[COL.legsDone])}</td>
-      <td style="font-size:11px">${row[COL.squats]||''}</td>
-      <td>${row[COL.bodyWeight]||''}</td>
-      <td>${row[COL.tennis]||''}</td>
-      <td>${row[COL.padel]||''}</td>
-      <td>${row[COL.cycling]||''}</td>
+      <td><span class="cell-edit" style="font-weight:600;color:var(--muted)">${escHtml(String(row[COL.weekDate]??''))}</span></td>
+      <td>${cellEdit(i, COL.sessions, row[COL.sessions])}</td>
+      <td>${cellGoal(i, row[COL.goal])}</td>
+      <td>${cellCheck(i, COL.chestDone, row[COL.chestDone])}</td>
+      <td>${cellEdit(i, COL.chestPress, row[COL.chestPress])}</td>
+      <td>${cellCheck(i, COL.backDone, row[COL.backDone])}</td>
+      <td>${cellEdit(i, COL.latPulldown, row[COL.latPulldown])}</td>
+      <td>${cellEdit(i, COL.deadlift, row[COL.deadlift])}</td>
+      <td>${cellCheck(i, COL.shoulderDone, row[COL.shoulderDone])}</td>
+      <td>${cellEdit(i, COL.shoulderPress, row[COL.shoulderPress])}</td>
+      <td>${cellCheck(i, COL.armsDone, row[COL.armsDone])}</td>
+      <td>${cellCheck(i, COL.legsDone, row[COL.legsDone])}</td>
+      <td>${cellEdit(i, COL.squats, row[COL.squats])}</td>
+      <td>${cellEdit(i, COL.bodyWeight, row[COL.bodyWeight])}</td>
+      <td>${cellEdit(i, COL.tennis, row[COL.tennis])}</td>
+      <td>${cellEdit(i, COL.padel, row[COL.padel])}</td>
+      <td>${cellEdit(i, COL.cycling, row[COL.cycling])}</td>
     </tr>`;
   }
   html += '</tbody></table>';
