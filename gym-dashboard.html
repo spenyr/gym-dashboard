@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gym Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #1e2130;
+    --border: #2a2d3e;
+    --accent1: #6c63ff;
+    --accent2: #ff6b6b;
+    --accent3: #43e97b;
+    --accent4: #f7971e;
+    --accent5: #38f9d7;
+    --accent6: #f857a6;
+    --text: #e8eaf6;
+    --muted: #8891b0;
+    --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", system-ui, sans-serif; min-height: 100vh; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #12141e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo { font-size: 28px; }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .header h1 span { color: var(--accent1); }
+  .subtitle { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  /* Upload */
+  .upload-area {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface);
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .upload-area:hover { border-color: var(--accent1); background: rgba(108,99,255,0.08); }
+  .upload-area input { display: none; }
+  .upload-area .upload-icon { font-size: 22px; }
+  .upload-area .upload-text { font-size: 13px; color: var(--muted); }
+  .upload-area .upload-text strong { color: var(--text); display: block; font-size: 14px; }
+  #file-name { font-size: 12px; color: var(--accent3); margin-top: 2px; }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 24px 32px 0;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    position: relative; overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 14px 14px 0 0;
+  }
+  .stat-card:nth-child(1)::before { background: var(--accent1); }
+  .stat-card:nth-child(2)::before { background: var(--accent2); }
+  .stat-card:nth-child(3)::before { background: var(--accent3); }
+  .stat-card:nth-child(4)::before { background: var(--accent4); }
+  .stat-card:nth-child(5)::before { background: var(--accent5); }
+  .stat-card:nth-child(6)::before { background: var(--accent6); }
+  .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .stat-value { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+  .stat-card:nth-child(1) .stat-value { color: var(--accent1); }
+  .stat-card:nth-child(2) .stat-value { color: var(--accent2); }
+  .stat-card:nth-child(3) .stat-value { color: var(--accent3); }
+  .stat-card:nth-child(4) .stat-value { color: var(--accent4); }
+  .stat-card:nth-child(5) .stat-value { color: var(--accent5); }
+  .stat-card:nth-child(6) .stat-value { color: var(--accent6); }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* Charts grid */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 24px 32px 32px;
+  }
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    position: relative; overflow: hidden;
+  }
+  .chart-card.wide { grid-column: 1 / -1; }
+  .chart-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .chart-icon { font-size: 24px; }
+  .chart-title { font-size: 16px; font-weight: 700; }
+  .chart-badge {
+    margin-left: auto;
+    font-size: 12px; font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+  .badge-chest     { background: rgba(108,99,255,0.18);  color: var(--accent1); }
+  .badge-back      { background: rgba(255,107,107,0.18); color: var(--accent2); }
+  .badge-legs      { background: rgba(67,233,123,0.18);  color: var(--accent3); }
+  .badge-shoulders { background: rgba(247,151,30,0.18);  color: var(--accent4); }
+  .badge-weekly    { background: rgba(56,249,215,0.18);  color: var(--accent5); }
+  .badge-sport     { background: rgba(248,87,166,0.18);  color: var(--accent6); }
+  .chart-canvas-wrap { position: relative; height: 280px; }
+  .chart-card.wide .chart-canvas-wrap { height: 240px; }
+
+  /* Empty state */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 80px 32px;
+    gap: 16px;
+    text-align: center;
+  }
+  .empty-state .big-icon { font-size: 64px; opacity: 0.3; }
+  .empty-state h2 { font-size: 22px; font-weight: 700; color: var(--muted); }
+  .empty-state p { font-size: 14px; color: var(--muted); max-width: 400px; line-height: 1.7; }
+
+  /* Insights section */
+  .insights-section {
+    padding: 0 32px 40px;
+  }
+  .insights-heading {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px;
+  }
+  .insights-heading h2 {
+    font-size: 18px; font-weight: 700;
+  }
+  .insights-heading .section-icon { font-size: 22px; }
+  .insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
+  }
+  .insight-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 18px;
+    position: relative; overflow: hidden;
+  }
+  .insight-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 16px 16px 0 0;
+  }
+  .insight-card:nth-child(1)::before { background: var(--accent2); }
+  .insight-card:nth-child(2)::before { background: var(--accent1); }
+  .insight-card:nth-child(3)::before { background: var(--accent5); }
+  .insight-card:nth-child(4)::before { background: var(--accent4); }
+  .insight-card:nth-child(5)::before { background: var(--accent2); }
+  .insight-col { display: flex; flex-direction: column; gap: 8px; }
+  .insight-col + .insight-col {
+    border-left: 1px solid var(--border);
+    padding-left: 18px;
+  }
+  .insight-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    padding: 3px 10px; border-radius: 20px;
+    width: fit-content;
+  }
+  .tag-finding  { background: rgba(255,107,107,0.15); color: var(--accent2); }
+  .tag-goal     { background: rgba(67,233,123,0.15);  color: var(--accent3); }
+  .insight-title {
+    font-size: 14px; font-weight: 700; line-height: 1.4;
+    color: var(--text);
+  }
+  .insight-body {
+    font-size: 13px; color: var(--muted); line-height: 1.6;
+  }
+  .insight-body strong { color: var(--text); }
+
+  @media (max-width: 900px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card.wide { grid-column: 1; }
+    .header { flex-direction: column; gap: 16px; align-items: flex-start; }
+    .stats-row { padding: 16px; }
+    .charts-grid { padding: 0 16px 24px; }
+    .insights-section { padding: 0 16px 32px; }
+    .insight-card { grid-template-columns: 1fr; }
+    .insight-col + .insight-col { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">🏋️</div>
+    <div>
+      <h1>Gym <span>Dashboard</span></h1>
+      <div class="subtitle">Your personal training performance tracker</div>
+    </div>
+  </div>
+  <label class="upload-area" id="upload-label">
+    <input type="file" id="file-input" accept=".xlsx,.xls" />
+    <div class="upload-icon">📂</div>
+    <div class="upload-text">
+      <strong>Upload gym data</strong>
+      <span>Drop your .xlsx file here</span>
+      <span id="file-name"></span>
+    </div>
+  </label>
+</div>
+
+<div id="empty-state" class="empty-state">
+  <div class="big-icon">📊</div>
+  <h2>No data loaded yet</h2>
+  <p>Upload your gym data Excel file using the button in the top-right corner to see your performance dashboard.</p>
+</div>
+
+<div id="dashboard" style="display:none">
+  <div class="stats-row" id="stats-row"></div>
+  <div class="charts-grid" id="charts-grid"></div>
+
+  <!-- Insights & Goals -->
+  <div class="insights-section">
+    <div class="insights-heading">
+      <span class="section-icon">💡</span>
+      <h2>Key Insights &amp; Goals</h2>
+    </div>
+    <div class="insights-grid">
+
+      <!-- 1 -->
+      <div class="insight-card">
+        <div class="insight-col">
+          <span class="insight-tag tag-finding">🎯 Insight</span>
+          <div class="insight-title">Gym goal hit rate is only 29%</div>
+          <div class="insight-body">You hit your 3-session target in just <strong>11 of 38 weeks</strong>. The most common shortfall is landing on 2 sessions — one session short most weeks.</div>
+        </div>
+        <div class="insight-col">
+          <span class="insight-tag tag-goal">✅ Goal</span>
+          <div class="insight-title">Reach 50% goal hit rate</div>
+          <div class="insight-body">Aim to hit 3+ sessions in <strong>at least 2 out of every 4 weeks</strong>. Schedule your third session on a Monday so it can't get squeezed out later in the week.</div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="insight-card">
+        <div class="insight-col">
+          <span class="insight-tag tag-finding">🏋️ Insight</span>
+          <div class="insight-title">Chest press stuck at 70kg for 8 reps</div>
+          <div class="insight-body">70kg has been your full-rep ceiling since January. You've touched <strong>80–85kg</strong> but only with heavily reduced reps — you're on the edge of the breakthrough.</div>
+        </div>
+        <div class="insight-col">
+          <span class="insight-tag tag-goal">✅ Goal</span>
+          <div class="insight-title">Land 75kg for 8 reps by end of year</div>
+          <div class="insight-body">Add a <strong>progressive overload week every 3rd chest session</strong>: attempt 72.5kg for 6 reps, then 75kg for 5, building up. Don't go straight to 80kg — bridge the gap.</div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="insight-card">
+        <div class="insight-col">
+          <span class="insight-tag tag-finding">🎾 Insight</span>
+          <div class="insight-title">Tennis volume is surging but replacing gym time</div>
+          <div class="insight-body">Tennis hours spiked to <strong>6–9h/week</strong> in summer. Three of your five zero-gym weeks coincide exactly with your highest tennis weeks.</div>
+        </div>
+        <div class="insight-col">
+          <span class="insight-tag tag-goal">✅ Goal</span>
+          <div class="insight-title">Treat high-tennis weeks as a minimum 1-session floor</div>
+          <div class="insight-body">Even in peak tennis weeks, commit to <strong>1 gym session focused on upper body</strong>. Tennis loads legs and cardio — a 45-min chest/shoulder session won't cost recovery.</div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="insight-card">
+        <div class="insight-col">
+          <span class="insight-tag tag-finding">🚫 Insight</span>
+          <div class="insight-title">5 complete zero-gym weeks, all in summer</div>
+          <div class="insight-body">Weeks of <strong>4 May, 29 Jun, 20 Jul, 3 Aug, 21 Sep</strong> were full drop-outs. They cluster in your highest-activity sport period, suggesting gym gets deprioritised when outdoors.</div>
+        </div>
+        <div class="insight-col">
+          <span class="insight-tag tag-goal">✅ Goal</span>
+          <div class="insight-title">Zero zero-weeks from here on</div>
+          <div class="insight-body">A single <strong>30-min maintenance session</strong> still counts and keeps momentum. Set a rule: if you miss Mon–Thu, you go on Saturday — no exceptions.</div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="insight-card">
+        <div class="insight-col">
+          <span class="insight-tag tag-finding">💪 Insight</span>
+          <div class="insight-title">Back &amp; deadlift are your most neglected group</div>
+          <div class="insight-body">Back was only trained in <strong>14 of 38 weeks</strong> and deadlift in just 8 sessions total — the fewest of any muscle group despite having an 80kg target.</div>
+        </div>
+        <div class="insight-col">
+          <span class="insight-tag tag-goal">✅ Goal</span>
+          <div class="insight-title">Deadlift every week you hit the gym 3+ times</div>
+          <div class="insight-body">Make deadlift a <strong>non-negotiable on your second session</strong> of any week. Start at 70kg for 5 reps and add 2.5kg every second back session to build toward the 80kg target.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── XLSX parsing helpers ────────────────────────────────────────────────────
+
+function parseWeightStringFullReps(str) {
+  // Returns the highest weight (in kg) performed at full reps (no brackets suffix).
+  // A segment like "70(4)" means fewer than 8 reps → excluded.
+  // A segment like "70" (no brackets) means a full 8-rep set → included.
+  if (!str || typeof str !== 'string') return null;
+  const cleaned = str.replace(/—/g, ',').replace(/\s+/g, '');
+  const segments = cleaned.split(',');
+  let maxWeight = null;
+  for (const seg of segments) {
+    // Exclude anything that has a (n) suffix — that means custom rep count
+    if (/\(/.test(seg)) continue;
+    const m = seg.match(/^(\d+(?:\.\d+)?)$/);
+    if (!m) continue;
+    const weight = parseFloat(m[1]);
+    if (weight > 0) {
+      if (maxWeight === null || weight > maxWeight) maxWeight = weight;
+    }
+  }
+  return maxWeight;
+}
+
+function hasData(val) {
+  return val !== null && val !== undefined && String(val).trim() !== '';
+}
+
+function toNum(val) {
+  const n = parseFloat(String(val).replace(/[^\d.]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function formatWeekLabel(val) {
+  // val may be an Excel date serial (number) or an ISO date string like "2026-01-05"
+  if (!val && val !== 0) return null;
+  if (typeof val === 'number') {
+    // Excel serial date → JS date
+    const date = XLSX.SSF.parse_date_code(val);
+    if (!date) return String(val);
+    const m = String(date.m).padStart(2, '0');
+    const d = String(date.d).padStart(2, '0');
+    return `${d}/${m}`;
+  }
+  const str = String(val).trim();
+  // ISO date "2026-01-05"
+  const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}`;
+  // Already dd/mm
+  const dmy = str.match(/(\d{2})\/(\d{2})/);
+  if (dmy) return str.slice(0, 5);
+  return str;
+}
+
+// ─── Column index map (0-based) for new spreadsheet format ──────────────────
+// A=0  Week commencing
+// B=1  Times at gym
+// C=2  Goal
+// D=3  Chest (Done marker)
+// E=4  Chest press weights
+// F=5  Incline dumbbell press
+// G=6  Decline bench press
+// H=7  Back (Done marker)
+// I=8  Lat pulldown weights
+// J=9  Deadlift weights
+// K=10 Arms (Done marker)
+// L=11 Abs
+// M=12 Shoulder (Done marker)
+// N=13 Shoulder press weights
+// O=14 Legs (Done marker)
+// P=15 Squats weights
+// Q=16 Leg extensions
+// R=17 Leg press
+// S=18 Leg curls
+// T=19 Weight (kg)
+// U=20 Hours tennis per week
+// V=21 Hours padel per week
+// W=22 Hours cycled per week
+
+const COL = {
+  weekDate:     0,
+  sessions:     1,
+  chestDone:    3,
+  chestPress:   4,
+  backDone:     7,
+  deadlift:     9,
+  armsDone:     10,
+  shoulderDone: 12,
+  shoulderPress:13,
+  legsDone:     14,
+  squats:       15,
+  bodyWeight:   19,
+  tennis:       20,
+  padel:        21,
+  cycling:      22,
+};
+
+// ─── Main data processor ────────────────────────────────────────────────────
+
+function processData(rows) {
+  // rows[0] is the header row
+  const weeks       = [];
+  const chestMax    = [];
+  const deadliftMax = [];
+  const squatMax    = [];
+  const shoulderMax = [];
+  const weightLog   = [];
+  const sportHours  = []; // { label, tennis, padel, cycling }
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const weekRaw = row[COL.weekDate];
+
+    // Skip genuinely empty rows (no date)
+    if (!hasData(weekRaw)) continue;
+
+    const weekLabel = formatWeekLabel(weekRaw);
+    if (!weekLabel) continue;
+
+    const sessions = toNum(row[COL.sessions]);
+
+    // Muscle group split (was each group trained this week?)
+    const split = {
+      chest:     hasData(row[COL.chestDone])    ? 1 : 0,
+      back:      hasData(row[COL.backDone])      ? 1 : 0,
+      arms:      hasData(row[COL.armsDone])      ? 1 : 0,
+      shoulders: hasData(row[COL.shoulderDone])  ? 1 : 0,
+      legs:      hasData(row[COL.legsDone])      ? 1 : 0,
+    };
+
+    weeks.push({ weekLabel, sessions, split });
+
+    const chest    = parseWeightStringFullReps(row[COL.chestPress]);
+    const deadlift = parseWeightStringFullReps(row[COL.deadlift]);
+    const squat    = parseWeightStringFullReps(row[COL.squats]);
+    const shoulder = parseWeightStringFullReps(row[COL.shoulderPress]);
+
+    if (chest    !== null) chestMax.push({ weekLabel, weight: chest });
+    if (deadlift !== null) deadliftMax.push({ weekLabel, weight: deadlift });
+    if (squat    !== null) squatMax.push({ weekLabel, weight: squat });
+    if (shoulder !== null) shoulderMax.push({ weekLabel, weight: shoulder });
+
+    const bw = toNum(row[COL.bodyWeight]);
+    if (bw > 0) weightLog.push({ weekLabel, weight: bw });
+
+    const tennis  = toNum(row[COL.tennis]);
+    const padel   = toNum(row[COL.padel]);
+    const cycling = toNum(row[COL.cycling]);
+    if (tennis > 0 || padel > 0 || cycling > 0) {
+      sportHours.push({ weekLabel, tennis, padel, cycling });
+    }
+  }
+
+  return { weeks, chestMax, deadliftMax, squatMax, shoulderMax, weightLog, sportHours };
+}
+
+// ─── Chart registry ─────────────────────────────────────────────────────────
+
+const chartInstances = {};
+
+function destroyChart(id) {
+  if (chartInstances[id]) {
+    chartInstances[id].destroy();
+    delete chartInstances[id];
+  }
+}
+
+// ─── Render dashboard ───────────────────────────────────────────────────────
+
+function renderDashboard(data) {
+  const { weeks, chestMax, deadliftMax, squatMax, shoulderMax, weightLog, sportHours } = data;
+
+  // ── Stats ──
+  const totalSessions  = weeks.reduce((s, w) => s + w.sessions, 0);
+  const weeksWithData  = weeks.filter(w => w.sessions > 0).length;
+  const topChest       = chestMax.length    ? Math.max(...chestMax.map(d => d.weight))    : 0;
+  const topDeadlift    = deadliftMax.length ? Math.max(...deadliftMax.map(d => d.weight)) : 0;
+  const topSquat       = squatMax.length    ? Math.max(...squatMax.map(d => d.weight))    : 0;
+  const topShoulder    = shoulderMax.length ? Math.max(...shoulderMax.map(d => d.weight)) : 0;
+  const totalTennis    = sportHours.reduce((s, r) => s + r.tennis,  0);
+  const totalPadel     = sportHours.reduce((s, r) => s + r.padel,   0);
+  const totalCycling   = sportHours.reduce((s, r) => s + r.cycling, 0);
+  const latestWeight   = weightLog.length ? weightLog[weightLog.length - 1].weight : null;
+
+  const statsRow = document.getElementById('stats-row');
+  statsRow.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Total Sessions</div>
+      <div class="stat-value">${totalSessions}</div>
+      <div class="stat-sub">over ${weeksWithData} active weeks</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top Chest Press</div>
+      <div class="stat-value">${topChest}<small style="font-size:14px">kg</small></div>
+      <div class="stat-sub">personal best</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top Deadlift</div>
+      <div class="stat-value">${topDeadlift}<small style="font-size:14px">kg</small></div>
+      <div class="stat-sub">personal best</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top Squat</div>
+      <div class="stat-value">${topSquat}<small style="font-size:14px">kg</small></div>
+      <div class="stat-sub">personal best</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top Shoulder Press</div>
+      <div class="stat-value">${topShoulder}<small style="font-size:14px">kg</small></div>
+      <div class="stat-sub">personal best</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Sport Hours Total</div>
+      <div class="stat-value">${(totalTennis + totalPadel + totalCycling).toFixed(0)}<small style="font-size:14px">h</small></div>
+      <div class="stat-sub">🎾 ${totalTennis}h &nbsp;🏸 ${totalPadel}h &nbsp;🚴 ${totalCycling}h</div>
+    </div>
+    ${latestWeight !== null ? `
+    <div class="stat-card">
+      <div class="stat-label">Current Weight</div>
+      <div class="stat-value">${latestWeight}<small style="font-size:14px">kg</small></div>
+      <div class="stat-sub">latest recorded</div>
+    </div>` : ''}
+  `;
+
+  // ── Charts grid ──
+  const grid = document.getElementById('charts-grid');
+  grid.innerHTML = `
+    <!-- Weekly attendance – wide -->
+    <div class="chart-card wide">
+      <div class="chart-header">
+        <span class="chart-icon">📅</span>
+        <span class="chart-title">Weekly Gym Attendance — Goal: 3 Sessions</span>
+        <span class="chart-badge badge-weekly">Sessions per Week</span>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-weekly"></canvas></div>
+    </div>
+
+    <!-- Sport hours – wide -->
+    <div class="chart-card wide">
+      <div class="chart-header">
+        <span class="chart-icon">🏃</span>
+        <span class="chart-title">Weekly Sport Activity Hours</span>
+        <span class="chart-badge badge-sport">Tennis · Padel · Cycling</span>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-sport"></canvas></div>
+    </div>
+
+    <!-- Chest -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-icon">💪</span>
+        <span class="chart-title">Chest Press — Top Weight for 8 Reps, Target: 80kg</span>
+        <span class="chart-badge badge-chest">Chest</span>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-chest"></canvas></div>
+    </div>
+
+    <!-- Back / Deadlift -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-icon">🔱</span>
+        <span class="chart-title">Deadlift — Top Weight for 8 Reps, Target: 80kg</span>
+        <span class="chart-badge badge-back">Back</span>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-deadlift"></canvas></div>
+    </div>
+
+    <!-- Squats -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-icon">🦵</span>
+        <span class="chart-title">Squats — Top Weight for 8 Reps, Target: 80kg</span>
+        <span class="chart-badge badge-legs">Legs</span>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-squats"></canvas></div>
+    </div>
+
+    <!-- Shoulder press -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-icon">🏔️</span>
+        <span class="chart-title">Shoulder Press — Top Weight for 8 Reps, Target: 32kg</span>
+        <span class="chart-badge badge-shoulders">Shoulders</span>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-shoulders"></canvas></div>
+    </div>
+  `;
+
+  // ── Chart shared config ──
+
+  const gridColor  = 'rgba(255,255,255,0.05)';
+  const tickColor  = '#8891b0';
+  const fontFamily = '-apple-system, "Segoe UI", system-ui, sans-serif';
+
+  const baseScales = {
+    x: {
+      grid: { color: gridColor },
+      ticks: { color: tickColor, font: { family: fontFamily, size: 11 }, maxRotation: 45 }
+    },
+    y: {
+      grid: { color: gridColor },
+      ticks: { color: tickColor, font: { family: fontFamily, size: 11 } },
+      beginAtZero: true
+    }
+  };
+
+  const baseLegend = { labels: { color: '#e8eaf6', font: { family: fontFamily } } };
+
+  // ── Weekly attendance stacked bar chart ──
+  destroyChart('weekly');
+  const weeklyCtx = document.getElementById('chart-weekly').getContext('2d');
+  const weeklyLabels = weeks.map(w => w.weekLabel);
+
+  const muscleGroups = [
+    { key: 'chest',     label: 'Chest',     color: 'rgba(108,99,255,0.85)',  border: '#6c63ff' },
+    { key: 'back',      label: 'Back',      color: 'rgba(255,107,107,0.85)', border: '#ff6b6b' },
+    { key: 'legs',      label: 'Legs',      color: 'rgba(67,233,123,0.85)',  border: '#43e97b' },
+    { key: 'shoulders', label: 'Shoulders', color: 'rgba(247,151,30,0.85)',  border: '#f7971e' },
+    { key: 'arms',      label: 'Arms',      color: 'rgba(56,249,215,0.85)',  border: '#38f9d7' },
+  ];
+
+  const stackedDatasets = muscleGroups.map(mg => ({
+    label: mg.label,
+    data: weeks.map(w => w.split[mg.key]),
+    backgroundColor: mg.color,
+    borderColor: mg.border,
+    borderWidth: 1,
+    borderRadius: 3,
+    borderSkipped: false,
+  }));
+
+  // Goal line annotation drawn as an extra dataset (dashed red line at y=3)
+  const goalLineDataset = {
+    label: 'Goal (3 sessions)',
+    data: weeklyLabels.map(() => 3),
+    type: 'line',
+    borderColor: 'rgba(255, 80, 80, 0.9)',
+    borderWidth: 2,
+    borderDash: [8, 4],
+    pointRadius: 0,
+    fill: false,
+    tension: 0,
+    order: -1, // draw on top of bars
+  };
+
+  chartInstances['weekly'] = new Chart(weeklyCtx, {
+    type: 'bar',
+    data: { labels: weeklyLabels, datasets: [...stackedDatasets, goalLineDataset] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { ...baseLegend, position: 'top' },
+        tooltip: {
+          mode: 'index',
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.label === 'Goal (3 sessions)') return null;
+              return ctx.parsed.y > 0 ? ` ${ctx.dataset.label}` : null;
+            },
+            footer: items => {
+              const total = items.filter(i => i.dataset.label !== 'Goal (3 sessions)').reduce((s, i) => s + i.parsed.y, 0);
+              return `Total: ${total} session${total !== 1 ? 's' : ''}`;
+            }
+          }
+        }
+      },
+      scales: {
+        ...baseScales,
+        x: { ...baseScales.x, stacked: true },
+        y: {
+          ...baseScales.y,
+          stacked: true,
+          ticks: { ...baseScales.y.ticks, stepSize: 1 },
+          max: 6,
+          title: { display: true, text: 'Sessions', color: tickColor, font: { family: fontFamily, size: 11 } }
+        }
+      }
+    }
+  });
+
+  // ── Sport activity hours stacked bar chart ──
+  destroyChart('sport');
+  const sportCtx = document.getElementById('chart-sport').getContext('2d');
+
+  // Show all weeks (not just active sport weeks) so x-axis aligns with attendance chart
+  const sportAllLabels = weeks.map(w => w.weekLabel);
+  // Build a lookup from week label → sport hours for sparse data
+  const sportMap = {};
+  sportHours.forEach(r => { sportMap[r.weekLabel] = r; });
+
+  const sportDatasets = [
+    {
+      label: 'Tennis',
+      data: sportAllLabels.map(l => sportMap[l] ? sportMap[l].tennis : 0),
+      backgroundColor: 'rgba(108,99,255,0.85)',
+      borderColor: '#6c63ff',
+      borderWidth: 1,
+      borderRadius: 3,
+      borderSkipped: false,
+    },
+    {
+      label: 'Padel',
+      data: sportAllLabels.map(l => sportMap[l] ? sportMap[l].padel : 0),
+      backgroundColor: 'rgba(248,87,166,0.85)',
+      borderColor: '#f857a6',
+      borderWidth: 1,
+      borderRadius: 3,
+      borderSkipped: false,
+    },
+    {
+      label: 'Cycling',
+      data: sportAllLabels.map(l => sportMap[l] ? sportMap[l].cycling : 0),
+      backgroundColor: 'rgba(67,233,123,0.85)',
+      borderColor: '#43e97b',
+      borderWidth: 1,
+      borderRadius: 3,
+      borderSkipped: false,
+    },
+  ];
+
+  chartInstances['sport'] = new Chart(sportCtx, {
+    type: 'bar',
+    data: { labels: sportAllLabels, datasets: sportDatasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { ...baseLegend, position: 'top' },
+        tooltip: {
+          mode: 'index',
+          callbacks: {
+            label: ctx => ctx.parsed.y > 0 ? ` ${ctx.dataset.label}: ${ctx.parsed.y}h` : null,
+            footer: items => {
+              const total = items.reduce((s, i) => s + i.parsed.y, 0);
+              return total > 0 ? `Total: ${total}h` : null;
+            }
+          }
+        }
+      },
+      scales: {
+        ...baseScales,
+        x: { ...baseScales.x, stacked: true },
+        y: {
+          ...baseScales.y,
+          stacked: true,
+          ticks: { ...baseScales.y.ticks, callback: v => `${v}h` },
+          title: { display: true, text: 'Hours', color: tickColor, font: { family: fontFamily, size: 11 } }
+        }
+      }
+    }
+  });
+
+  // ── Strength chart helper ──
+  function buildStrengthChart(canvasId, chartKey, dataPoints, color, fillColor, label, targetKg) {
+    destroyChart(chartKey);
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    let pb = 0;
+    const pbLine = dataPoints.map(d => {
+      if (d.weight > pb) pb = d.weight;
+      return pb;
+    });
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+    gradient.addColorStop(0, fillColor);
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+    const datasets = [
+      {
+        label: label,
+        data: dataPoints.map(d => d.weight),
+        borderColor: color,
+        backgroundColor: gradient,
+        borderWidth: 2.5,
+        pointBackgroundColor: color,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: true,
+        tension: 0.35,
+      },
+      {
+        label: 'Personal Best',
+        data: pbLine,
+        borderColor: 'rgba(255,255,255,0.3)',
+        borderDash: [6, 4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+      },
+      {
+        label: `Target (${targetKg}kg)`,
+        data: dataPoints.map(() => targetKg),
+        borderColor: 'rgba(255, 80, 80, 0.9)',
+        borderWidth: 2,
+        borderDash: [8, 4],
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+      }
+    ];
+
+    chartInstances[chartKey] = new Chart(ctx, {
+      type: 'line',
+      data: { labels: dataPoints.map(d => d.weekLabel), datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: baseLegend,
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} kg` } }
+        },
+        scales: {
+          ...baseScales,
+          y: {
+            ...baseScales.y,
+            ticks: { ...baseScales.y.ticks, callback: v => `${v} kg` }
+          }
+        }
+      }
+    });
+  }
+
+  buildStrengthChart('chart-chest',     'chest',     chestMax,    '#6c63ff', 'rgba(108,99,255,0.25)',  'Chest Press (kg)', 80);
+  buildStrengthChart('chart-deadlift',  'deadlift',  deadliftMax, '#ff6b6b', 'rgba(255,107,107,0.25)', 'Deadlift (kg)',     80);
+  buildStrengthChart('chart-squats',    'squats',    squatMax,    '#43e97b', 'rgba(67,233,123,0.25)',  'Squats (kg)',       80);
+  buildStrengthChart('chart-shoulders', 'shoulders', shoulderMax, '#f7971e', 'rgba(247,151,30,0.25)',  'Shoulder Press (kg)', 32);
+}
+
+// ─── localStorage persistence ────────────────────────────────────────────────
+
+const LS_DATA_KEY = 'gymDashboardFileData';
+const LS_NAME_KEY = 'gymDashboardFileName';
+
+function saveToStorage(arrayBuffer, fileName) {
+  try {
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    localStorage.setItem(LS_DATA_KEY, btoa(binary));
+    localStorage.setItem(LS_NAME_KEY, fileName);
+  } catch(e) {
+    console.warn('Could not save to localStorage:', e);
+  }
+}
+
+function loadFromStorage() {
+  const b64  = localStorage.getItem(LS_DATA_KEY);
+  const name = localStorage.getItem(LS_NAME_KEY);
+  if (!b64 || !name) return null;
+  try {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return { buffer: bytes.buffer, name };
+  } catch(e) {
+    return null;
+  }
+}
+
+function parseAndRender(arrayBuffer, fileName) {
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  const data = processData(rows);
+  document.getElementById('file-name').textContent = fileName;
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  renderDashboard(data);
+}
+
+// ─── File upload handler ─────────────────────────────────────────────────────
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      saveToStorage(e.target.result, file.name);
+      parseAndRender(e.target.result, file.name);
+    } catch(err) {
+      alert('Error reading file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+document.getElementById('file-input').addEventListener('change', function(e) {
+  handleFile(e.target.files[0]);
+});
+
+// Drag and drop on upload area
+const uploadLabel = document.getElementById('upload-label');
+uploadLabel.addEventListener('dragover', e => { e.preventDefault(); uploadLabel.style.borderColor = 'var(--accent1)'; });
+uploadLabel.addEventListener('dragleave', () => { uploadLabel.style.borderColor = 'var(--border)'; });
+uploadLabel.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadLabel.style.borderColor = 'var(--border)';
+  handleFile(e.dataTransfer.files[0]);
+});
+
+// ─── On page load: restore saved data ────────────────────────────────────────
+(async () => {
+  const saved = loadFromStorage();
+  if (saved) {
+    try {
+      parseAndRender(saved.buffer, saved.name + ' (saved)');
+      return;
+    } catch(_) {
+      localStorage.removeItem(LS_DATA_KEY);
+      localStorage.removeItem(LS_NAME_KEY);
+    }
+  }
+
+  // Fallback: auto-fetch if served over HTTP alongside the HTML
+  try {
+    // Try the new filename first, fall back to old
+    let res = await fetch('gym data.xlsx');
+    if (!res.ok) res = await fetch('gym%20data.xlsx');
+    if (!res.ok) return;
+    const buf = await res.arrayBuffer();
+    saveToStorage(buf, 'gym data.xlsx');
+    parseAndRender(buf, 'gym data.xlsx (auto-loaded)');
+  } catch(_) {
+    // Not served over HTTP — user must upload manually
+  }
+})();
+</script>
+</body>
+</html>
