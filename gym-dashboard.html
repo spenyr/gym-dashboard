@@ -263,8 +263,8 @@
   .muscle-toggle input[type="checkbox"] { display: none; }
   .muscle-toggle.checked { border-color: var(--accent1); background: rgba(108,99,255,0.08); }
   .muscle-toggle .mt-label { font-size: 13px; font-weight: 600; }
-  .muscle-toggle .mt-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; margin-left: auto; }
-  .muscle-toggle.checked .mt-check { background: var(--accent1); border-color: var(--accent1); }
+  .muscle-toggle .mt-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; margin-left: auto; color: transparent; }
+  .muscle-toggle.checked .mt-check { background: var(--accent1); border-color: var(--accent1); color: #fff; }
 
   .weight-inputs { margin-top: 14px; }
   .weight-row {
@@ -1062,24 +1062,28 @@ function toggleMuscle(muscle) {
 
 function updateWeightInputs() {
   const wrap = document.getElementById('weight-inputs');
-  const musclesWithWeights = ['chest','back','deadlift','shoulders','legs'];
-  const active = musclesWithWeights.filter(m => checkedMuscles.has(m));
-  if (!active.length) {
+  // Build list of input fields to show — back expands into two sub-fields
+  const fields = [];
+  if (checkedMuscles.has('chest'))     fields.push({ id:'wi-chest',    label:'Chest Press weights',    placeholder:'e.g. 20,40,60,70', title:'💪 Chest' });
+  if (checkedMuscles.has('back')) {
+    fields.push({ id:'wi-back',      label:'Lat Pulldown weights',   placeholder:'e.g. 40,50,60',    title:'🔱 Back — Lat Pulldown' });
+    fields.push({ id:'wi-deadlift',  label:'Deadlift weights',       placeholder:'e.g. 50,70,90',    title:'🔱 Back — Deadlift' });
+  }
+  if (checkedMuscles.has('shoulders')) fields.push({ id:'wi-shoulders', label:'Shoulder Press weights', placeholder:'e.g. 14,22,26',    title:'🏔️ Shoulders' });
+  if (checkedMuscles.has('legs'))      fields.push({ id:'wi-legs',      label:'Squat weights',          placeholder:'e.g. 20,40,60',    title:'🦵 Legs' });
+
+  if (!fields.length) {
     wrap.innerHTML = '<p style="color:var(--muted);font-size:13px">Select muscle groups above to log weights.</p>';
     return;
   }
-  wrap.innerHTML = active.map(m => {
-    const f = muscleWeightFields[m];
-    const icons = {chest:'💪',back:'🔱',deadlift:'🔱',shoulders:'🏔️',legs:'🦵'};
-    return `<div class="weight-row">
-      <h4>${icons[m]||''} ${m.charAt(0).toUpperCase()+m.slice(1)}</h4>
-      <div class="weight-input-group">
-        <label>${f.label}</label>
-        <input type="text" id="wi-${m}" placeholder="${f.placeholder}" />
-        <small>Separate sets by commas. Add (reps) after weight if not 8, e.g. 70(4)</small>
-      </div>
-    </div>`;
-  }).join('');
+  wrap.innerHTML = fields.map(f => `<div class="weight-row">
+    <h4>${f.title}</h4>
+    <div class="weight-input-group">
+      <label>${f.label}</label>
+      <input type="text" id="${f.id}" placeholder="${f.placeholder}" />
+      <small>Separate sets by commas. Add (reps) after weight if not 8, e.g. 70(4)</small>
+    </div>
+  </div>`).join('');
 }
 
 // Set default date to current Monday
