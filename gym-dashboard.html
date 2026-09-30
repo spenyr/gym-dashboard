@@ -105,8 +105,8 @@
   body.mobile .insight-title { font-size: 12px; }
   body.mobile .insight-body  { font-size: 11px; }
 
-  /* Sticky header offset in mobile */
-  body.mobile .data-table th { top: 88px; }
+  /* Mobile table scroll height */
+  body.mobile .table-scroll { max-height: calc(100vh - 130px); }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", system-ui, sans-serif; min-height: 100vh; }
 
@@ -302,11 +302,18 @@
 
   /* ── DATA VIEW TAB ── */
   .data-panel {
-    padding: 20px 24px 40px;
-    overflow-x: auto;
+    padding: 20px 24px 12px;
   }
   .data-panel h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
   .data-panel .data-hint { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  /* Scrollable table wrapper — sticky headers only work when
+     the scroll container is the direct parent of the table */
+  .table-scroll {
+    overflow: auto;
+    max-height: calc(100vh - 160px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
   .data-table {
     width: 100%; border-collapse: collapse;
     font-size: 12px;
@@ -321,7 +328,7 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
-    position: sticky; top: 105px; z-index: 2;
+    position: sticky; top: 0; z-index: 2;
     white-space: nowrap;
   }
   .data-table td {
@@ -603,7 +610,9 @@
   <div class="data-panel">
     <h2>Weekly Data</h2>
     <p class="data-hint">Tap any cell to edit it. Changes save instantly and update the dashboard.</p>
-    <div id="data-table-wrap"></div>
+    <div class="table-scroll">
+      <div id="data-table-wrap"></div>
+    </div>
   </div>
 </div>
 
