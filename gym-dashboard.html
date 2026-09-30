@@ -234,7 +234,7 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
-    position: sticky; top: 0; z-index: 2;
+    position: sticky; top: 105px; z-index: 2;
     white-space: nowrap;
   }
   .data-table td {
@@ -890,8 +890,6 @@ function renderDataTable() {
   for (let i = 0; i < allRows.length; i++) {
     const row = allRows[i];
     if (!hasData(row[COL.weekDate])) continue;
-    if (!hasData(row[COL.sessions]) && !hasData(row[COL.chestDone]) &&
-        !hasData(row[COL.tennis]) && !hasData(row[COL.padel]) && !hasData(row[COL.cycling])) continue;
 
     html += `<tr>
       <td><span class="cell-edit" style="font-weight:600;color:var(--muted)">${escHtml(String(row[COL.weekDate]??''))}</span></td>
