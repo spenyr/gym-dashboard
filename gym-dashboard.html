@@ -20,6 +20,93 @@
     --text: #e8eaf6;
     --muted: #8891b0;
   }
+
+  /* ── MOBILE TOGGLE BUTTON ── */
+  .mobile-toggle {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 20px; padding: 6px 12px;
+    color: var(--muted); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    user-select: none;
+  }
+  .mobile-toggle:hover { border-color: var(--accent1); color: var(--accent1); }
+  body.mobile .mobile-toggle {
+    border-color: var(--accent1); color: var(--accent1);
+    background: rgba(108,99,255,0.12);
+  }
+
+  /* ════════════════════════════════════
+     MOBILE MODE — body.mobile overrides
+  ════════════════════════════════════ */
+  body.mobile .header {
+    padding: 10px 14px;
+  }
+  body.mobile .logo { font-size: 22px; }
+  body.mobile .header h1 { font-size: 16px; }
+  body.mobile .subtitle { display: none; }
+
+  body.mobile .tabs { padding: 0 8px; }
+  body.mobile .tab-btn { padding: 10px 10px; font-size: 12px; }
+
+  /* Stats: 2 columns on mobile */
+  body.mobile .stats-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px; padding: 12px 12px 0;
+  }
+  body.mobile .stat-card { padding: 12px 12px; border-radius: 12px; }
+  body.mobile .stat-label { font-size: 10px; margin-bottom: 4px; }
+  body.mobile .stat-value { font-size: 22px; }
+  body.mobile .stat-sub   { font-size: 10px; }
+
+  /* Charts: single column, shorter */
+  body.mobile .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 12px; padding: 12px 12px 20px;
+  }
+  body.mobile .chart-card.wide { grid-column: 1; }
+  body.mobile .chart-card { padding: 14px 14px; border-radius: 14px; }
+  body.mobile .chart-icon { font-size: 18px; }
+  body.mobile .chart-title { font-size: 12px; }
+  body.mobile .chart-badge { font-size: 10px; padding: 2px 8px; }
+  body.mobile .chart-canvas-wrap { height: 180px; }
+  body.mobile .chart-card.wide .chart-canvas-wrap { height: 160px; }
+
+  /* Log panel */
+  body.mobile .log-panel { margin: 14px auto; padding: 0 12px 32px; }
+  body.mobile .log-panel h2 { font-size: 16px; margin-bottom: 14px; }
+  body.mobile .toggle-btn { font-size: 13px; padding: 10px 8px; }
+  body.mobile .form-section { margin-bottom: 16px; }
+  body.mobile .form-section h3 { font-size: 11px; margin-bottom: 8px; }
+  body.mobile .form-group input, body.mobile .form-group select { padding: 9px 12px; font-size: 13px; }
+  body.mobile .muscle-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  body.mobile .muscle-toggle { padding: 9px 10px; border-radius: 9px; }
+  body.mobile .muscle-toggle .mt-label { font-size: 12px; }
+  body.mobile .weight-row { padding: 12px; }
+  body.mobile .weight-input-group input { padding: 8px 10px; font-size: 13px; }
+  body.mobile .btn-submit { padding: 14px; font-size: 14px; border-radius: 12px; }
+
+  /* Data panel */
+  body.mobile .data-panel { padding: 12px 10px 32px; }
+  body.mobile .data-panel h2 { font-size: 15px; }
+  body.mobile .data-panel .data-hint { font-size: 11px; }
+  body.mobile .data-table { font-size: 11px; }
+  body.mobile .data-table th { padding: 6px 7px; font-size: 10px; }
+  body.mobile .cell-edit { min-height: 30px; padding: 5px 6px; font-size: 11px; }
+  body.mobile .cell-check { min-height: 30px; font-size: 14px; }
+  body.mobile .cell-select { min-height: 30px; padding: 4px 6px; font-size: 11px; }
+
+  /* Insights */
+  body.mobile .insights-section { padding: 0 12px 28px; }
+  body.mobile .insights-heading h2 { font-size: 15px; }
+  body.mobile .insights-grid { grid-template-columns: 1fr; gap: 10px; }
+  body.mobile .insight-card { padding: 14px 14px; grid-template-columns: 1fr; gap: 12px; }
+  body.mobile .insight-col + .insight-col { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; }
+  body.mobile .insight-title { font-size: 12px; }
+  body.mobile .insight-body  { font-size: 11px; }
+
+  /* Sticky header offset in mobile */
+  body.mobile .data-table th { top: 88px; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", system-ui, sans-serif; min-height: 100vh; }
 
@@ -309,7 +396,7 @@
   @media (max-width: 700px) {
     .charts-grid { grid-template-columns: 1fr; }
     .chart-card.wide { grid-column: 1; }
-    .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    .header { flex-direction: row; gap: 10px; align-items: center; }
     .muscle-grid { grid-template-columns: 1fr; }
     .insight-card { grid-template-columns: 1fr; }
     .insight-col + .insight-col { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; }
@@ -327,6 +414,9 @@
       <h1>Gym <span>Dashboard</span></h1>
       <div class="subtitle">Your personal training performance tracker</div>
     </div>
+  </div>
+  <div class="mobile-toggle" onclick="toggleMobileMode()" id="mobile-toggle-btn">
+    📱 Mobile
   </div>
 </div>
 
@@ -1087,8 +1177,28 @@ function refreshDashboard() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// MOBILE MODE TOGGLE
+// ═══════════════════════════════════════════════════════════
+const LS_MOBILE_KEY = 'gymDashboardMobile';
+
+function toggleMobileMode() {
+  const isMobile = document.body.classList.toggle('mobile');
+  localStorage.setItem(LS_MOBILE_KEY, isMobile ? '1' : '');
+  document.getElementById('mobile-toggle-btn').textContent = isMobile ? '🖥️ Desktop' : '📱 Mobile';
+  // Charts need a resize trigger after layout change
+  setTimeout(() => {
+    Object.values(chartInstances).forEach(c => c.resize());
+  }, 50);
+}
+
+// ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
+// Restore mobile preference
+if (localStorage.getItem(LS_MOBILE_KEY) === '1') {
+  document.body.classList.add('mobile');
+  document.getElementById('mobile-toggle-btn').textContent = '🖥️ Desktop';
+}
 refreshDashboard();
 </script>
 </body>
